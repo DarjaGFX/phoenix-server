@@ -5,9 +5,15 @@ from multiprocessing import Process
 import subprocess
 import numpy as np
 
-def __terminator(tbl):
+tbl = {}
+
+def __terminator():
+    global tbl
     for i in list(tbl.keys()):
-        os.remove(i)
+        try:
+            os.remove(i)
+        except:
+            pass
 
 def __start(path):
     """
@@ -36,17 +42,19 @@ def secure():
 
 def lookForChange():
     ### look for checksum missmatch to delete files and kill processes :-)
-    while True:
-        tbl = __load()
+    global tbl
+    flag = True
+    while flag:
         for f in list(tbl.keys()):
             chcksm = (__md5(f),__sha256(f))
             if chcksm != tbl[f]:
-                return True
-        time.sleep(3600)
+                flag = False            
+        time.sleep(1)
+    return True
 
 def __load():
     try:
-        t = dict(np.ndarray.tolist(np.load('core.npy')))
+        t = dict(np.ndarray.tolist(np.load('core.npy', allow_pickle=True)))
     except:
         print('npy file not found!')
         t = {}
@@ -64,12 +72,15 @@ def run():
     if lookForChange():
         for pr in p:
             pr.terminate()
-        __terminator(__load())
+        __terminator()
+        os.kill(os.getppid(),9)
 
 def main():
     # print(sys.argv)
+    global tbl
     ctrl = sys.argv[1]
     if ctrl.lower() =='run':
+        tbl = __load()
         run()
     elif ctrl.lower() == 'secure':
         secure()    
